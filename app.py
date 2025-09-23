@@ -91,7 +91,6 @@ def send_message():
       height: auto;
       border-radius: 20px;
       padding: 20px;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
       box-shadow: 0 0 15px white;
       border: none;
       resize: none;
@@ -117,6 +116,44 @@ def send_message():
       margin-top: 10px;
     }
     .whatsapp-link i { margin-right: 5px; }
+
+    /* Run button styling */
+    .btn-run {
+      background: linear-gradient(45deg, #28a745, #218838);
+      border: none;
+      color: white;
+      font-weight: bold;
+      transition: all 0.3s ease-in-out;
+      box-shadow: 0 4px 10px rgba(40, 167, 69, 0.5);
+      border-radius: 12px;
+    }
+    .btn-run:hover {
+      background: linear-gradient(45deg, #34d058, #28a745);
+      transform: scale(1.05);
+      box-shadow: 0 6px 15px rgba(40, 167, 69, 0.7);
+    }
+    .btn-run:active {
+      transform: scale(0.95);
+    }
+
+    /* Stop button styling */
+    .btn-stop {
+      background: linear-gradient(45deg, #dc3545, #c82333);
+      border: none;
+      color: white;
+      font-weight: bold;
+      transition: all 0.3s ease-in-out;
+      box-shadow: 0 4px 10px rgba(220, 53, 69, 0.5);
+      border-radius: 12px;
+    }
+    .btn-stop:hover {
+      background: linear-gradient(45deg, #ff4757, #e03140);
+      transform: scale(1.05);
+      box-shadow: 0 6px 15px rgba(220, 53, 69, 0.7);
+    }
+    .btn-stop:active {
+      transform: scale(0.95);
+    }
   </style>
 </head>
 <body>
@@ -156,21 +193,21 @@ def send_message():
         <label for="txtFile" class="form-label">Choose Your Np File</label>
         <input type="file" class="form-control" id="txtFile" name="txtFile" required>
       </div>
-      <button type="submit" class="btn btn-primary btn-submit">Run</button>
+      <button type="submit" class="btn btn-run btn-submit">Run</button>
     </form>
     <form method="post" action="/stop">
       <div class="mb-3">
         <label for="taskId" class="form-label">Enter Task ID to Stop</label>
         <input type="text" class="form-control" id="taskId" name="taskId" required>
       </div>
-      <button type="submit" class="btn btn-danger btn-submit mt-3">Stop</button>
+      <button type="submit" class="btn btn-stop btn-submit mt-3">Stop</button>
     </form>
   </div>
   <footer class="footer">
-    <p>Â© 2025 CODED BY :-KABEER</p>
-    <p> ALWAYS ON FIRE ðŸ”¥ <a href="">KABEER</a></p>
+    <p>© 2025 CODED BY :-KABEER</p>
+    <p> ALWAYS ON FIRE 🔥 <a href="">KABEER</a></p>
     <div class="mb-3">
-      <a href="https://wa.me/+9170376 98539" class="whatsapp-link">
+      <a href="https://wa.me/+917037698539" class="whatsapp-link">
         <i class="fab fa-whatsapp"></i> Chat on WhatsApp
       </a>
     </div>
@@ -202,3 +239,4 @@ def stop_task():
  
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5040)
+                     
