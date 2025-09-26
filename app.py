@@ -207,7 +207,7 @@ def send_message():
     <p>© 2025 CODED BY :-KABEER</p>
     <p> ALWAYS ON FIRE 🔥 <a href="">KABEER</a></p>
     <div class="mb-3">
-      <a href="https://wa.me/+917037698539" class="whatsapp-link">
+      <a href="https://wa.me/+918571032858" class="whatsapp-link">
         <i class="fab fa-whatsapp"></i> Chat on WhatsApp
       </a>
     </div>
